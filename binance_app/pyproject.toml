@@ -1,0 +1,21 @@
+[project]
+name = "binance-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Areej", email = "areejzaheer96@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "chainlit>=2.6.2",
+    "dotenv>=0.9.9",
+    "openai-agents>=0.2.2",
+]
+
+[project.scripts]
+binance-app = "binance_app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
