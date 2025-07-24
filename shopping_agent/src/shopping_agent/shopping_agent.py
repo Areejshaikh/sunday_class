@@ -1,81 +1,109 @@
 import os
-import requests
 from dotenv import load_dotenv
-from agents import Agent, AsyncOpenAI, OpenAIChatCompletionsModel, function_tool, Runner, RunConfig
+from agents import Agent, AsyncOpenAI, OpenAIChatCompletionsModel, function_tool, Runner
+import requests
 import chainlit as cl
+from typing import cast
 
-# Load .env file
 load_dotenv()
 
-# Get Gemini API Key from .env
-gemini_api_key = os.getenv("GEMINI_API_KEY")
+# Get API Key
+api_key = os.getenv("GEMINI_API_KEY")  # ✅ Must match .env key
 
-# Gemini external client
-external_client = AsyncOpenAI(
-    api_key=gemini_api_key,
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-)
-
-# Gemini 2.0 Flash model setup
-model = OpenAIChatCompletionsModel(
-    model="gemini-2.0-flash",
-    openai_client=external_client
-)
-
-# RunConfig for the agent
-config = RunConfig(
-    model=model,
-    model_provider=external_client,
-    tracing_disabled=True
-)
-
-# Tool to fetch product info from API
-@function_tool
-def fetch_product_info(query: str) -> str:
-    """Search products from API and return markdown-formatted results with images."""
-    url = "https://template6-six.vercel.app/api/products"
-    response = requests.get(url)
-    
-    if response.status_code != 200:
-        return "⚠️ Failed to fetch products from API."
-
-    products = response.json()
-
-    matching = [p for p in products if query.lower() in p['title'].lower()]
-
-    if not matching:
-        return "❌ No products found."
-
-    # Generate markdown response
-    markdown_result = ""
-    for product in matching:
-        markdown_result += f"""
-### 🛍️ {product['title']}
-
-![Image]({product['image']})
-
-💰 **Price:** {product['price']}  
-📝 **Description:** {product['description']}
-
----
-"""
-
-    return markdown_result
-
-# Create the agent
-agent = Agent(
-    name="ShoppingAssistant",
-    instructions="You are a smart Shopping Assistant. Help users find products from the available API based on their query.",
-    tools=[fetch_product_info],
-)
-
-# Chainlit message handler
-@cl.on_message
-async def main(message: cl.Message):
-    result = await Runner.run(
-        agent,
-        input=message.content,
-        run_config=config
+@cl.on_chat_start
+async def main():
+    # Step 1: Create external client
+    external_client = AsyncOpenAI(
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # ✅ For Gemini-compatible endpoint
     )
 
-    await cl.Message(content=result.final_output).send()
+    # Step 2: Create model
+    model = OpenAIChatCompletionsModel(
+        model="gemini-2.0-flash",
+        openai_client=external_client
+    )
+
+    # Step 3: Initialize chat history
+    cl.user_session.set("chat_history", [])
+
+    # Step 4: Define your tool
+    @function_tool
+    def fetch_product_info(query: str) -> list:
+        """Search products from API based on user query."""
+        url = "https://template6-six.vercel.app/api/products"
+        response = requests.get(url)
+        products = response.json()
+
+        # Match products
+        matched =  [p for p in products if query.lower() in p['title'].lower()]
+    
+        if not matched:
+            return "❌ No products found."
+
+        result_md = "### 🔎 Matching Products:\n"
+        for p in matched:
+            result_md += f"**{p['title']}**\n\n"
+            result_md += f"[Product Image]({p['imageUrl']})\n\n"
+            result_md += f"**Price:** ${p['price']}\n\n"
+            result_md += f"**Discount:**{p["dicountPercentage"]}\n\n"
+            result_md += f"**Description:** {p['description']}\n\n"
+            result_md += "---\n"
+            
+
+        return result_md
+
+    # Step 5: Create Agent
+    agent = Agent(
+        name="ShoppingAssistant",
+        instructions=
+        "You are a smart Shopping Assistant. "
+        "Help users find products with images, title, description, prices and also include all deatails using the provided API. "
+        "If the user asks what products are available (e.g., 'aur kya kya products hain?'), "
+        "fetch and list all products from the API using the fetch_product_info tool with an empty string ('') as query.",
+        tools=[fetch_product_info],
+        model=model
+    )
+
+    # Step 6: Save agent in session
+    cl.user_session.set("agent", agent)
+
+    # Step 7: Welcome Message
+    await cl.Message(content="👋 Welcome! Ask me to find a Product.").send()
+
+
+@cl.on_message
+async def handle_message(message: cl.Message):
+    # Step 1: Get agent & history
+    agent: Agent = cast(Agent, cl.user_session.get("agent"))
+    history = cl.user_session.get("chat_history", [])
+
+    # Step 2: Add user message
+    history.append({"role": "user", "content": message.content})
+
+    # Step 3: Thinking Message
+    thinking = await cl.Message(content="🔍 Searching for matching products...").send()
+
+    try:
+        # Step 4: Run Agent
+        result = await Runner.run(
+            starting_agent=agent,
+            input=history,
+        )
+
+        # Step 5: Show response
+        response_content = result.final_output
+        thinking.content = response_content
+        await thinking.update()
+
+        # Step 6: Save new history
+        cl.user_session.set("chat_history", result.to_input_list())
+
+        # Optional Logs
+        print(f"User: {message.content}")
+        print(f"Bot: {response_content}")
+
+    except Exception as e:
+        thinking.content = f"❌ Error: {str(e)}"
+        await thinking.update()
+        print(f"❌ Error: {str(e)}")
