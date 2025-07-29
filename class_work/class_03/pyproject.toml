@@ -1,0 +1,20 @@
+[project]
+name = "class-03"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Areej", email = "areejzaheer96@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "openai-agents>=0.2.3",
+]
+
+[project.scripts]
+class-03 = "class_03:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

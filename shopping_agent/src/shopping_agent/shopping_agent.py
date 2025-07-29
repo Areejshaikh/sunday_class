@@ -82,7 +82,7 @@ async def handle_message(message: cl.Message):
     history.append({"role": "user", "content": message.content})
 
     # Step 3: Thinking Message
-    thinking = await cl.Message(content="🔍 Searching for matching products...").send()
+    thinking = await cl.Message(content="Searching for matching products...").send()
 
     try:
         # Step 4: Run Agent
