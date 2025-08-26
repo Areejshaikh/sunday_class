@@ -14,7 +14,7 @@ Dramatic poetry is meant to be performed out loud, where someone acts like a cha
 
 # OpenAI key and Logs
 
-1.	https://platform.openai.com/docs/overview
+1.	https://platform.openai.com/api-keys
 2. Login/Signup
 3. Goto Dashboaerd Goto API Keys from sidebar
 4. Click on Create New Secret Key

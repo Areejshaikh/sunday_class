@@ -1,5 +1,5 @@
 from typing import cast
-from agents import Agent, Runner
+from agents import Agent, Runner , trace
 import asyncio
 from connection import config
 import chainlit as cl

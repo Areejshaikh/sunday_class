@@ -5,7 +5,7 @@ from agents import AsyncOpenAI, OpenAIChatCompletionsModel, RunConfig
 load_dotenv()
 
 gemini_api_key = os.getenv("GEMINI_API_KEY")
-print(gemini_api_key)
+
 # Check if the API key is present; if not, raise an error
 if not gemini_api_key:
     raise ValueError("GEMINI_API_KEY is not set. Please ensure it is defined in your .env file.")
@@ -18,11 +18,10 @@ external_client = AsyncOpenAI(
 
 model = OpenAIChatCompletionsModel(
     model="gemini-2.0-flash",
-    openai_client=external_client
+    openai_client=external_client,
 )
 
 config = RunConfig(
     model=model,
     model_provider=external_client,
-    # tracing_disabled=True
 )
